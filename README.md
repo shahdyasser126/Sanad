@@ -1,58 +1,461 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# SANAD - Provider Discovery Backend
 
-## About Laravel
+Provider Discovery backend feature for SANAD, built with Laravel.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+The feature allows users to discover verified healthcare providers, search and filter providers, and open provider details.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+---
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Feature Scope
 
-## Learning Laravel
+This implementation covers:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- Provider listing
+- Provider search
+- Provider filtering
+- Provider details
+- Verified-provider visibility
+- Specialty matching
+- Explainable search/filter matching
+- Doctor profile details
+- Clinic profile and branches
+- Empty search/filter results
+- API Resources
+- Feature tests
+- API documentation
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Features such as booking, payments, reviews, emergency workflows, and other unrelated modules are outside the current Provider Discovery scope.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+---
 
-## Agentic Development
+## Tech Stack
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+- PHP
+- Laravel
+- MySQL
+- Laravel Eloquent ORM
+- Laravel API Resources
+- Pest / PHPUnit Feature Tests
 
-```bash
-composer require laravel/boost --dev
+---
 
-php artisan boost:install
+## Provider Types
+
+The Provider model currently supports:
+
+- `doctor`
+- `clinic`
+
+---
+
+## Verification
+
+Only verified providers are publicly discoverable.
+
+Supported verification statuses:
+
+- `pending`
+- `verified`
+- `expired`
+- `suspended`
+- `revoked`
+
+Public discovery only returns providers with:
+
+```text
+verification_status = verified
+````
+
+Unverified provider details return:
+
+```text
+404 Not Found
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Database Structure
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+The Provider Discovery feature uses the following main tables:
 
-## Code of Conduct
+```text
+providers
+doctor_profiles
+clinic_profiles
+clinic_branches
+specialties
+provider_specialty
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Main relationships
 
-## Security Vulnerabilities
+```text
+Provider
+ ├── DoctorProfile
+ ├── ClinicProfile
+ │    └── ClinicBranch
+ └── Specialties
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## API Endpoints
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Base path:
+
+```text
+/api
+```
+
+### List Providers
+
+```http
+GET /api/providers
+```
+
+Returns a paginated list of verified providers.
+
+### Search
+
+```http
+GET /api/providers?search=Ahmed
+```
+
+Searches:
+
+* provider name
+* bio
+* city
+* region
+
+### Filter by Specialty
+
+```http
+GET /api/providers?specialty=Cardiology
+```
+
+### Filter by Region
+
+```http
+GET /api/providers?region=Gharbia
+```
+
+### Filter by Provider Type
+
+```http
+GET /api/providers?type=doctor
+```
+
+Supported values:
+
+```text
+doctor
+clinic
+```
+
+### Combined Search and Filters
+
+```http
+GET /api/providers?search=Ahmed&specialty=Cardiology&region=Gharbia&type=doctor
+```
+
+### Provider Details
+
+```http
+GET /api/providers/{providerId}
+```
+
+Returns details for a verified provider.
+
+---
+
+## Explainable Matching
+
+Search and filtering responses can include:
+
+```text
+matched_fields
+matching_reasons
+```
+
+Example:
+
+```json
+{
+    "matched_fields": [
+        "specialty",
+        "region"
+    ],
+    "matching_reasons": [
+        "Matched specialty: Cardiology",
+        "Matched region: Gharbia"
+    ]
+}
+```
+
+This allows the frontend to explain why a provider matched the user's search or filters.
+
+---
+
+## Provider Details
+
+The Provider Details API can return:
+
+* Basic provider information
+* Contact information
+* Location
+* Fees
+* Rating
+* Verification information
+* Specialties
+* Doctor profile information
+* Clinic branches
+
+Doctor example:
+
+```json
+{
+    "doctor_profile": {
+        "qualification": "M.B.B.S, M.D. Cardiology",
+        "license_number": "DOC-10001",
+        "affiliations": "Tanta University Hospital"
+    }
+}
+```
+
+Clinic example:
+
+```json
+{
+    "clinic_profile": {
+        "branches": [
+            {
+                "name": "Al Hayat Medical Center - Main Branch",
+                "city": "Tanta",
+                "region": "Gharbia"
+            }
+        ]
+    }
+}
+```
+
+---
+
+## Empty Results
+
+A valid request with no matching providers returns:
+
+```json
+{
+    "success": true,
+    "data": []
+}
+```
+
+Example:
+
+```http
+GET /api/providers?specialty=Neurology
+```
+
+The frontend can use this response to display an Empty State.
+
+---
+
+## API Documentation
+
+Detailed API documentation is available at:
+
+```text
+docs/provider-discovery-api.md
+```
+
+It includes:
+
+* Endpoint descriptions
+* Query parameters
+* Request examples
+* Response examples
+* Filtering behavior
+* Matching explanations
+* Empty results
+* Unverified provider behavior
+* Frontend integration flow
+
+---
+
+## Frontend Integration Flow
+
+The intended discovery flow is:
+
+```text
+GET /api/providers
+        ↓
+Provider List
+        ↓
+Search / Filter
+        ↓
+Select Provider
+        ↓
+GET /api/providers/{id}
+        ↓
+Provider Details
+```
+
+The frontend can use:
+
+```text
+success
+```
+
+to determine request success.
+
+For search and filtering:
+
+```text
+matched_fields
+matching_reasons
+```
+
+can be used to explain matching results.
+
+---
+
+## Running the Project
+
+Install PHP dependencies:
+
+```powershell
+composer install
+```
+
+Install frontend dependencies:
+
+```powershell
+npm install
+```
+
+Create the environment file:
+
+```powershell
+copy .env.example .env
+```
+
+Generate the application key:
+
+```powershell
+php artisan key:generate
+```
+
+Configure the MySQL database in `.env`.
+
+Run migrations:
+
+```powershell
+php artisan migrate
+```
+
+Seed the Provider Discovery sample data:
+
+```powershell
+php artisan db:seed
+```
+
+---
+
+## Running Tests
+
+Run the complete test suite:
+
+```powershell
+php artisan test
+```
+
+Current Provider Discovery test coverage includes:
+
+* Verified providers appear in listing
+* Search by provider name
+* Filter by specialty
+* Provider details
+* Blocking unverified provider details
+* Combined filters
+* Explainable matching
+* Doctor profile details
+* Clinic branch details
+* Empty search/filter results
+
+Current test result:
+
+```text
+12 tests passed
+44 assertions
+```
+
+---
+
+## Project Structure
+
+Important Provider Discovery files:
+
+```text
+app/
+├── Http/
+│   ├── Controllers/
+│   │   └── Api/
+│   │       └── ProviderController.php
+│   └── Resources/
+│       ├── ProviderSummaryResource.php
+│       └── ProviderDetailResource.php
+│
+├── Models/
+│   ├── Provider.php
+│   ├── DoctorProfile.php
+│   ├── ClinicProfile.php
+│   ├── ClinicBranch.php
+│   └── Specialty.php
+│
+database/
+├── migrations/
+└── seeders/
+    ├── ProviderSeeder.php
+    └── SpecialtySeeder.php
+│
+routes/
+└── api.php
+│
+tests/
+└── Feature/
+    └── ProviderDiscoveryTest.php
+│
+docs/
+└── provider-discovery-api.md
+```
+
+---
+
+## Git
+
+Main branch:
+
+```text
+main
+```
+
+Repository:
+
+https://github.com/shahdyasser126/Sanad.git
+---
+
+## Current Status
+
+Provider Discovery backend is implemented and tested.
+
+Current test status:
+
+```text
+12 tests passed
+44 assertions
+```
+
+The implementation is ready for frontend integration and API consumption.
