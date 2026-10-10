@@ -7,11 +7,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ProviderSummaryResource extends JsonResource
 {
-    /**
-     * Transform the resource into an array.
-     *
-     * @return array<string, mixed>
-     */
     public function toArray(Request $request): array
     {
         return [
@@ -40,6 +35,15 @@ class ProviderSummaryResource extends JsonResource
                     ->map(fn ($specialty) => [
                         'id' => $specialty->id,
                         'name' => $specialty->name,
+                    ])
+                    ->values();
+            }),
+
+            'services' => $this->whenLoaded('services', function () {
+                return $this->services
+                    ->map(fn ($service) => [
+                        'id' => $service->id,
+                        'name' => $service->name,
                     ])
                     ->values();
             }),

@@ -306,3 +306,133 @@ test('provider discovery returns an empty result when no provider matches', func
         ->assertJsonPath('success', true)
         ->assertJsonCount(0, 'data');
 });
+test('provider details includes services', function () {
+    $provider = Provider::create([
+        'type' => 'doctor',
+        'name' => 'Ahmed Hassan',
+        'bio' => 'Cardiology specialist.',
+        'email' => 'ahmed-services@test.test',
+        'verification_status' => 'verified',
+    ]);
+
+    $service = \App\Models\Service::create([
+        'name' => 'Cardiology Consultation',
+        'description' => 'Consultation for heart conditions.',
+    ]);
+
+    $provider->services()->attach($service->id);
+
+    $response = $this->getJson("/api/providers/{$provider->id}");
+
+    $response
+        ->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonPath(
+            'data.services.0.name',
+            'Cardiology Consultation'
+        )
+        ->assertJsonPath(
+            'data.services.0.description',
+            'Consultation for heart conditions.'
+        );
+});
+test('provider discovery filters by service', function () {
+    $cardio = Provider::create([
+        'type' => 'doctor',
+        'name' => 'Ahmed Hassan',
+        'bio' => 'Cardiology specialist.',
+        'email' => 'ahmed-service-filter@test.test',
+        'verification_status' => 'verified',
+    ]);
+
+    $derma = Provider::create([
+        'type' => 'doctor',
+        'name' => 'Mona Ali',
+        'bio' => 'Dermatology specialist.',
+        'email' => 'mona-service-filter@test.test',
+        'verification_status' => 'verified',
+    ]);
+
+    $cardiologyService = \App\Models\Service::create([
+        'name' => 'Cardiology Consultation',
+        'description' => 'Consultation for heart conditions.',
+    ]);
+
+    $dermatologyService = \App\Models\Service::create([
+        'name' => 'Dermatology Consultation',
+        'description' => 'Consultation for skin conditions.',
+    ]);
+
+    $cardio->services()->attach($cardiologyService);
+    $derma->services()->attach($dermatologyService);
+
+    $response = $this->getJson(
+        '/api/providers?service=Cardiology'
+    );
+
+    $response
+        ->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.name', 'Ahmed Hassan')
+        ->assertJsonPath(
+            'data.0.services.0.name',
+            'Cardiology Consultation'
+        )
+        ->assertJsonPath(
+            'data.0.matched_fields.0',
+            'service'
+        );
+});
+test('provider discovery filters by availability time', function () {
+    $availableProvider = Provider::create([
+        'type' => 'doctor',
+        'name' => 'Available Doctor',
+        'email' => 'available-doctor@test.test',
+        'verification_status' => 'verified',
+    ]);
+
+    $unavailableProvider = Provider::create([
+        'type' => 'doctor',
+        'name' => 'Unavailable Doctor',
+        'email' => 'unavailable-doctor@test.test',
+        'verification_status' => 'verified',
+    ]);
+
+    \App\Models\AvailabilitySlot::create([
+        'provider_id' => $availableProvider->id,
+        'starts_at' => '2026-10-11 10:00:00',
+        'ends_at' => '2026-10-11 11:00:00',
+        'is_available' => true,
+    ]);
+
+    \App\Models\AvailabilitySlot::create([
+        'provider_id' => $unavailableProvider->id,
+        'starts_at' => '2026-10-11 10:00:00',
+        'ends_at' => '2026-10-11 11:00:00',
+        'is_available' => false,
+    ]);
+
+    $query = http_build_query([
+        'available_at' => '2026-10-11 10:30:00',
+    ]);
+
+    $response = $this->getJson("/api/providers?{$query}");
+
+    $response
+        ->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath(
+            'data.0.id',
+            $availableProvider->id
+        )
+        ->assertJsonPath(
+            'data.0.matched_fields.0',
+            'availability'
+        )
+        ->assertJsonPath(
+            'data.0.matching_reasons.0',
+            'Matched availability time: 2026-10-11 10:30:00'
+        );
+});

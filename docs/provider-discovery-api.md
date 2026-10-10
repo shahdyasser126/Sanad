@@ -1,154 +1,174 @@
 # SANAD Provider Discovery API
 
-## Overview
+## 1. Overview
 
-The Provider Discovery API allows the frontend to discover verified healthcare providers, search by provider information, filter results, and open provider details.
+The Provider Discovery API allows the frontend to discover verified healthcare providers, search by provider information, filter results using multiple criteria, and retrieve detailed provider information.
+
+The API currently supports doctors and clinics.
 
 All endpoints are currently public and do not require authentication.
 
-Base URL:
+**Base URL**
 
 ```text
-/api
+http://127.0.0.1:8000/api
 ```
 
----
+## 2. List Providers
 
-## Endpoints
-
-### 1. List Providers
-
-Returns a paginated list of verified providers.
+Returns a paginated list of verified healthcare providers.
 
 ```http
 GET /api/providers
 ```
 
-Only providers with:
+Only providers with `verification_status = verified` are included.
 
-```text
-verification_status = verified
-```
+### Query Parameters
 
-are included.
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search` | string | No | Searches provider name, bio, city, or region |
+| `specialty` | string | No | Filters providers by specialty name |
+| `service` | string | No | Filters providers by service name |
+| `region` | string | No | Filters providers by region |
+| `type` | string | No | Filters by provider type (`doctor` or `clinic`) |
+| `available_at` | datetime | No | Filters providers with an available slot covering the specified date and time |
 
-#### Query Parameters
+### Pagination
 
-| Parameter   | Type   | Required | Description                                     |
-| ----------- | ------ | -------: | ----------------------------------------------- |
-| `search`    | string |       No | Searches provider name, bio, city, or region    |
-| `specialty` | string |       No | Filters providers by specialty name             |
-| `region`    | string |       No | Filters providers by region                     |
-| `type`      | string |       No | Filters by provider type (`doctor` or `clinic`) |
+The listing endpoint returns 10 providers per page.
 
-Results are paginated with 10 providers per page.
+The response includes:
 
-#### Example
+- `links`: URLs for the first, last, previous, and next pages.
+- `meta`: Pagination information, including current page, page size, total providers, and total pages.
+
+### Example Request
 
 ```http
-GET /api/providers?search=Ahmed&specialty=Cardiology&region=Gharbia&type=doctor
+GET /api/providers
 ```
 
-#### Example Response
+### Example Response
+
+The following example is based on the actual listing response. The `data` array is shortened to one provider for readability; pagination values reflect the supplied response.
 
 ```json
 {
-    "success": true,
-    "data": [
+  "data": [
+    {
+      "id": 1,
+      "type": "doctor",
+      "name": "Ahmed Hassan",
+      "bio": "Consultant cardiologist with experience in adult heart care.",
+      "location": {
+        "city": "Tanta",
+        "region": "Gharbia"
+      },
+      "fees": {
+        "min": "300.00",
+        "max": "500.00"
+      },
+      "rating": {
+        "average": "4.80",
+        "count": 125
+      },
+      "specialties": [
         {
-            "id": 1,
-            "type": "doctor",
-            "name": "Ahmed Hassan",
-            "bio": "Cardiology specialist.",
-            "location": {
-                "city": "Tanta",
-                "region": "Gharbia"
-            },
-            "fees": {
-                "min": "300.00",
-                "max": "500.00"
-            },
-            "rating": {
-                "average": "4.80",
-                "count": 25
-            },
-            "specialties": [
-                {
-                    "id": 1,
-                    "name": "Cardiology"
-                }
-            ],
-            "matched_fields": [
-                "specialty",
-                "region",
-                "type",
-                "name"
-            ],
-            "matching_reasons": [
-                "Matched specialty: Cardiology",
-                "Matched region: Gharbia",
-                "Matched provider type: doctor",
-                "Matched name: Ahmed Hassan"
-            ]
+          "id": 1,
+          "name": "Cardiology"
         }
-    ]
+      ],
+      "services": [
+        {
+          "id": 1,
+          "name": "Cardiology Consultation"
+        }
+      ]
+    }
+  ],
+  "links": {
+    "first": "http://127.0.0.1:8000/api/providers?page=1",
+    "last": "http://127.0.0.1:8000/api/providers?page=1",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 1,
+    "links": [],
+    "path": "http://127.0.0.1:8000/api/providers",
+    "per_page": 10,
+    "to": 4,
+    "total": 4
+  },
+  "success": true
 }
 ```
 
-The exact pagination metadata is also returned by Laravel's resource collection.
+Each provider in the listing may include:
 
----
+- Basic provider information
+- Location
+- Fees
+- Rating
+- Specialties
+- Services
+- Matching information when applicable
 
-### 2. Search Providers
+Each service in the listing contains its `id` and `name`.
 
-Search providers using provider information.
+## 3. Search Providers
+
+Searches providers using information associated with their profiles.
 
 ```http
 GET /api/providers?search={term}
 ```
 
-The search currently checks:
+The search checks:
 
-* `name`
-* `bio`
-* `city`
-* `region`
+- `name`
+- `bio`
+- `city`
+- `region`
 
-When a provider matches, the response includes:
+Only verified providers are returned.
 
-```text
-matched_fields
-matching_reasons
-```
+When matching information is available, the response includes `matched_fields` and `matching_reasons`.
 
-Example:
+### Example Request
 
 ```http
 GET /api/providers?search=Ahmed
 ```
 
-Possible matching information:
+### Example Matching Information
 
 ```json
 {
-    "matched_fields": [
-        "name"
-    ],
-    "matching_reasons": [
-        "Matched name: Ahmed Hassan"
-    ]
+  "matched_fields": [
+    "name"
+  ],
+  "matching_reasons": [
+    "Matched name: Ahmed Hassan"
+  ]
 }
 ```
 
----
+These fields explain why a provider matched the search criteria.
 
-### 3. Filter by Specialty
+## 4. Filter by Specialty
+
+Filters providers by specialty name.
 
 ```http
 GET /api/providers?specialty={specialty}
 ```
 
-Example:
+### Example Request
 
 ```http
 GET /api/providers?specialty=Cardiology
@@ -156,216 +176,290 @@ GET /api/providers?specialty=Cardiology
 
 Only verified providers associated with the requested specialty are returned.
 
-Matching information explains the result:
+### Example Matching Information
 
 ```json
 {
-    "matched_fields": [
-        "specialty"
-    ],
-    "matching_reasons": [
-        "Matched specialty: Cardiology"
-    ]
+  "matched_fields": [
+    "specialty"
+  ],
+  "matching_reasons": [
+    "Matched specialty: Cardiology"
+  ]
 }
 ```
 
----
+If no providers match, the API returns an empty `data` array.
 
-### 4. Filter by Region
+## 5. Filter by Service
+
+Filters providers associated with the requested service.
+
+```http
+GET /api/providers?service={service}
+```
+
+### Example Request
+
+```http
+GET /api/providers?service=Cardiology%20Consultation
+```
+
+The API returns verified providers associated with the requested service.
+
+Services in the listing response are represented as objects containing an `id` and a `name`.
+
+### Example Service Object
+
+```json
+{
+  "id": 1,
+  "name": "Cardiology Consultation"
+}
+```
+
+## 6. Filter by Region
+
+Filters providers by region.
 
 ```http
 GET /api/providers?region={region}
 ```
 
-Example:
+### Example Request
 
 ```http
 GET /api/providers?region=Gharbia
 ```
 
-The API filters providers using their `region` field.
+The API filters providers using their region information.
 
-The response includes:
+### Example Matching Information
 
 ```json
 {
-    "matched_fields": [
-        "region"
-    ],
-    "matching_reasons": [
-        "Matched region: Gharbia"
-    ]
+  "matched_fields": [
+    "region"
+  ],
+  "matching_reasons": [
+    "Matched region: Gharbia"
+  ]
 }
 ```
 
----
+## 7. Filter by Provider Type
 
-### 5. Filter by Provider Type
+Filters providers by provider type.
 
 ```http
 GET /api/providers?type={type}
 ```
 
-Supported values:
+Supported provider types:
 
 ```text
 doctor
 clinic
 ```
 
-Example:
+### Example Request
 
 ```http
 GET /api/providers?type=clinic
 ```
 
-The response includes matching information:
+### Example Matching Information
 
 ```json
 {
-    "matched_fields": [
-        "type"
-    ],
-    "matching_reasons": [
-        "Matched provider type: clinic"
-    ]
+  "matched_fields": [
+    "type"
+  ],
+  "matching_reasons": [
+    "Matched provider type: clinic"
+  ]
 }
 ```
 
----
+## 8. Filter by Availability
 
-### 6. Combined Search and Filters
-
-Multiple filters can be used in the same request.
-
-Example:
+Filters providers based on available appointment slots at a specified date and time.
 
 ```http
-GET /api/providers?search=Ahmed&specialty=Cardiology&region=Gharbia&type=doctor
+GET /api/providers?available_at={datetime}
 ```
 
-The API applies all supplied filters together.
+### Example Request
 
-This allows the frontend flow:
+```http
+GET /api/providers?available_at=2026-10-11%2010:30:00
+```
+
+A provider matches when an associated availability slot satisfies all of the following conditions:
+
+- `is_available` is `true`.
+- `starts_at` is less than or equal to the requested date and time.
+- `ends_at` is greater than the requested date and time.
+
+The datetime must be in a format accepted by the API's date validation rules.
+
+## 9. Combined Search and Filters
+
+Multiple query parameters can be used in the same request.
+
+### Example Request
+
+```http
+GET /api/providers?search=Ahmed&specialty=Cardiology&service=Cardiology%20Consultation&region=Gharbia&type=doctor&available_at=2026-10-11%2010:30:00
+```
+
+The API applies the supplied search and filter criteria together.
+
+Only verified providers matching the combined criteria are returned.
+
+### Frontend Flow
 
 ```text
 Search / Filter
-      ↓
+      |
+      v
 Provider List
-      ↓
+      |
+      v
 Select Provider
-      ↓
+      |
+      v
 Provider Details
 ```
 
----
+## 10. Provider Details
 
-## 7. Provider Details
-
-Returns the details of a single verified provider.
+Returns detailed information for a single verified provider.
 
 ```http
 GET /api/providers/{providerId}
 ```
 
-Example:
+### Example Request
 
 ```http
 GET /api/providers/1
 ```
 
-The response contains:
+The details response includes the fields exposed by the provider details resource, such as:
 
-* Basic provider information
-* Contact information
-* Location
-* Fees
-* Rating
-* Verification status
-* Specialties
-* Doctor profile information when available
-* Clinic branches when available
+- Basic provider information
+- Contact information
+- Location
+- Fees
+- Rating
+- Verification information
+- Specialties
+- Services
+- Doctor profile information, when available
+- Clinic profile and branches, when available
 
-#### Example Response
+### Example Response
+
+The following illustrates the response structure. Field values should match the current `ProviderDetailResource`.
 
 ```json
 {
-    "success": true,
-    "data": {
+  "success": true,
+  "data": {
+    "id": 1,
+    "type": "doctor",
+    "name": "Ahmed Hassan",
+    "bio": "Consultant cardiologist with experience in adult heart care.",
+    "contact": {
+      "phone": "01000000001",
+      "email": "ahmed@example.com",
+      "website": null
+    },
+    "location": {
+      "address_line": "100 El Bahr Street",
+      "city": "Tanta",
+      "region": "Gharbia",
+      "latitude": "30.7850000",
+      "longitude": "31.0020000"
+    },
+    "fees": {
+      "min": "300.00",
+      "max": "500.00"
+    },
+    "rating": {
+      "average": "4.80",
+      "count": 125
+    },
+    "verification": {
+      "status": "verified",
+      "verified_at": null
+    },
+    "specialties": [
+      {
         "id": 1,
-        "type": "doctor",
-        "name": "Ahmed Hassan",
-        "bio": "Cardiology specialist.",
-        "contact": {
-            "phone": "01000000001",
-            "email": "ahmed@example.com",
-            "website": null
-        },
-        "location": {
-            "address_line": "100 El Bahr Street",
-            "city": "Tanta",
-            "region": "Gharbia",
-            "latitude": "30.7850000",
-            "longitude": "31.0020000"
-        },
-        "fees": {
-            "min": "300.00",
-            "max": "500.00"
-        },
-        "rating": {
-            "average": "4.80",
-            "count": 25
-        },
-        "verification": {
-            "status": "verified",
-            "verified_at": null
-        },
-        "specialties": [
-            {
-                "id": 1,
-                "name": "Cardiology"
-            }
-        ],
-        "doctor_profile": {
-            "qualification": "M.B.B.S, M.D. Cardiology",
-            "license_number": "DOC-10001",
-            "affiliations": "Tanta University Hospital"
-        },
-        "clinic_profile": null
-    }
+        "name": "Cardiology"
+      }
+    ],
+    "services": [
+      {
+        "id": 1,
+        "name": "Cardiology Consultation",
+        "description": null
+      }
+    ],
+    "doctor_profile": {
+      "qualification": "M.B.B.S, M.D. Cardiology",
+      "license_number": "DOC-10001",
+      "affiliations": "Tanta University Hospital"
+    },
+    "clinic_profile": null
+  }
 }
 ```
 
-For a clinic provider, `clinic_profile` contains its branches.
+The contact, location, doctor profile, and service description values in this example are illustrative and should be verified against an actual details response.
+
+### 10.1. Doctor Profile
+
+When doctor profile information is available, the response may include:
+
+- Qualification
+- License number
+- Affiliations
+
+### 10.2. Clinic Profile and Branches
+
+For a clinic provider, `clinic_profile` may contain its branch information.
 
 Example:
 
 ```json
 {
-    "clinic_profile": {
-        "branches": [
-            {
-                "id": 1,
-                "name": "Al Hayat Medical Center - Main Branch",
-                "address_line": "100 El Bahr Street",
-                "city": "Tanta",
-                "region": "Gharbia",
-                "latitude": "30.7850000",
-                "longitude": "31.0020000",
-                "phone": "01000000005"
-            }
-        ]
-    }
+  "clinic_profile": {
+    "branches": [
+      {
+        "id": 1,
+        "name": "Al Hayat Medical Center - Main Branch",
+        "address_line": "100 El Bahr Street",
+        "city": "Tanta",
+        "region": "Gharbia",
+        "latitude": "30.7850000",
+        "longitude": "31.0020000",
+        "phone": "01000000005"
+      }
+    ]
+  }
 }
 ```
 
----
+The exact branch fields depend on the details resource.
 
-## 8. Unverified Providers
+## 11. Unverified Providers
 
-Unverified providers are not publicly discoverable.
+Unverified providers are not publicly discoverable through the provider listing endpoint.
 
-Providers with statuses such as:
+Statuses such as the following are excluded from public discovery:
 
 ```text
 pending
@@ -374,84 +468,93 @@ suspended
 revoked
 ```
 
-are excluded from the public listing.
-
 Requesting details for an unverified provider returns:
 
 ```http
 404 Not Found
 ```
 
-Example response:
+### Example Error Response
 
 ```json
 {
-    "success": false,
-    "message": "Provider not found."
+  "success": false,
+  "message": "Provider not found."
 }
 ```
 
----
+## 12. Empty Results
 
-## 9. Empty Results
+A valid search or filter that matches no providers returns a successful response with an empty `data` array.
 
-A valid search or filter with no matching providers returns a successful response with an empty data array.
-
-Example:
+### Example Request
 
 ```http
 GET /api/providers?specialty=Neurology
 ```
 
-Response:
+### Example Response
 
 ```json
 {
-    "success": true,
-    "data": []
+  "success": true,
+  "data": []
 }
 ```
 
-The frontend can use this response to display an Empty State.
+The frontend can use this response to display an empty state.
 
----
+## 13. Validation and Error Handling
 
-## 10. Frontend Integration
+Query parameters should use values supported by the API.
 
-The recommended integration flow is:
+The `available_at` parameter is validated as a date when a non-empty value is supplied.
+
+Invalid query parameters may result in a validation error, depending on the validation rules implemented by the application.
+
+The exact status code and response body for invalid input should be confirmed against the running API before being documented as guaranteed behavior.
+
+The frontend should distinguish between:
+
+- Successful requests with matching providers
+- Successful requests with an empty result
+- Validation errors
+- `404 Not Found` responses for unavailable provider details
+
+An empty `data` array does not indicate an API error.
+
+## 14. Frontend Integration
+
+The recommended frontend integration flow is:
 
 ```text
 GET /api/providers
-        ↓
+        |
+        v
 Display Provider List
-        ↓
-Apply search / filters
-        ↓
+        |
+        v
+Apply Search / Filters
+        |
+        v
 GET /api/providers/{id}
-        ↓
+        |
+        v
 Display Provider Details
 ```
 
 The frontend can use:
 
-```text
-success
-```
+- `success` to determine whether the request succeeded.
+- `data` to access provider information.
+- `links` to navigate between pages.
+- `meta` to display pagination information.
+- `matched_fields` to identify matching criteria.
+- `matching_reasons` to explain why a provider appeared in the results.
 
-to determine whether the request was successful.
+The frontend should handle empty results and HTTP error responses separately.
 
-For search and filtering, the frontend can also use:
-
-```text
-matched_fields
-matching_reasons
-```
-
-to explain why a provider matched the user's criteria.
-
----
-
-## 11. Supported Provider Types
+## 15. Supported Provider Types
 
 The current Provider model supports:
 
@@ -460,24 +563,16 @@ doctor
 clinic
 ```
 
----
+## 16. Testing
 
-## 12. Testing
+The Provider Discovery feature is covered by Laravel tests.
 
-The Provider Discovery feature is covered by Laravel Feature Tests.
+The last confirmed test result was:
 
-Current test coverage includes:
-
-* Verified providers appear in listing
-* Search by provider name
-* Filter by specialty
-* Provider details
-* Blocking unverified provider details
-* Combined filters
-* Explainable matching
-* Doctor profile details
-* Clinic branch details
-* Empty search/filter results
+```text
+15 tests passed
+60 assertions
+```
 
 Run the complete test suite with:
 
@@ -485,26 +580,41 @@ Run the complete test suite with:
 php artisan test
 ```
 
-Expected current result:
+The covered scenarios include:
 
-```text
-12 tests passed
-44 assertions
-```
+- Verified providers appear in the listing.
+- Search by provider name.
+- Filtering by specialty.
+- Filtering by service.
+- Filtering by region.
+- Filtering by provider type.
+- Filtering by availability time.
+- Provider details for verified providers.
+- Blocking unverified provider details.
+- Combined filters.
+- Explainable matching.
+- Doctor profile details.
+- Clinic branch details.
+- Service information in provider details.
+- Empty search or filter results.
 
----
+Run the test suite again before release to confirm the current result.
 
-## 13. Current Scope
+## 17. Current Scope
 
-The current implementation is intentionally limited to Provider Discovery.
+The current implementation focuses on Provider Discovery.
 
-Included:
+Included functionality:
 
 ```text
 Provider model
 Provider listing
 Provider search
-Provider filters
+Specialty filtering
+Service filtering
+Region filtering
+Provider type filtering
+Availability filtering
 Provider details
 Doctor profile
 Clinic profile and branches
@@ -515,4 +625,14 @@ Feature tests
 API documentation
 ```
 
-Features such as booking, payments, reviews, emergency workflows, and other unrelated modules are outside the current Provider Discovery scope.
+The following features are outside the current Provider Discovery scope:
+
+```text
+Booking
+Payments
+Reviews
+Emergency workflows
+Other unrelated modules
+```
+
+These features may be developed separately as the project evolves.

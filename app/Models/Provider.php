@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Provider extends Model
 {
@@ -53,5 +54,14 @@ class Provider extends Model
 {
     return $this->belongsToMany(Specialty::class)
         ->withTimestamps();
+}
+   public function services(): BelongsToMany
+{
+    return $this->belongsToMany(Service::class)
+        ->withTimestamps();
+}
+public function availabilitySlots(): HasMany
+{
+    return $this->hasMany(AvailabilitySlot::class);
 }
 }
